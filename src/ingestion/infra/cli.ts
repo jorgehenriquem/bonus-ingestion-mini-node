@@ -53,7 +53,12 @@ async function handleIngest(filePath: string, opts: Record<string, string | numb
   try {
     const batchSize = opts['batch-size'] ? (opts['batch-size'] as number) : 500;
     const resume = !opts['no-resume'];
-    const expiredRate = opts['expired-rate'] ? (opts['expired-rate'] as number) : 0;
+    const expiredRateRaw = opts['expired-rate'];
+    if (expiredRateRaw === true) {
+      console.error('[cli] erro: --expired-rate requer um valor entre 0 e 1 (ex: --expired-rate 0.3)');
+      process.exit(1);
+    }
+    const expiredRate = typeof expiredRateRaw === 'number' ? Math.min(1, Math.max(0, expiredRateRaw)) : 0;
 
     console.log(`[ingest] iniciando processamento: ${filePath}`);
     console.log(`[ingest] resume=${resume}, batch-size=${batchSize}, expired-rate=${expiredRate}`);

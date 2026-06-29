@@ -63,7 +63,7 @@ export async function ingestBonusFile(
   let consecutiveErrors = 0;
   let batch: BonusRecord[] = [];
 
-  const startMs = Date.now();
+  const startMs = performance.now();
 
   // Log memory periodically (every 100 batches)
   let logTick = 0;
@@ -126,7 +126,7 @@ export async function ingestBonusFile(
 
     logTick++;
     if (logTick % 100 === 0) {
-      const elapsed = (Date.now() - startMs) / 1000;
+      const elapsed = (performance.now() - startMs) / 1000;
       const rps = elapsed > 0 ? Math.round(read / elapsed) : 0;
       const rss = Math.round(process.memoryUsage().rss / 1024 / 1024);
       console.log(
@@ -180,7 +180,7 @@ export async function ingestBonusFile(
     rejectSink.close();
   }
 
-  const durationMs = Date.now() - startMs;
+  const durationMs = performance.now() - startMs;
   const rowsPerSec = durationMs > 0 ? Math.round((read / durationMs) * 1000) : 0;
 
   const report: IngestReport = { read, credited, expired, preCharged, rejected, durationMs, rowsPerSec };
