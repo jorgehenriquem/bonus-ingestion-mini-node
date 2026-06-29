@@ -3,3 +3,8 @@ node_modules/
 *.db
 dist/
 coverage/
+data/*.csv
+data/*.jsonl
+*.rejected.jsonl
+test-reject-sink.jsonl
+package-lock.json
