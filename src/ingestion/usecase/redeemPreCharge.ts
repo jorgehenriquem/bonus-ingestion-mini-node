@@ -1,4 +1,5 @@
 import type Database from 'better-sqlite3';
+import { daysFromNow } from './ingestBonusFile.ts';
 
 export type RedeemResult = {
   redeemed: number;
@@ -36,6 +37,8 @@ export function redeemPreCharge(
   // 3. Para cada pre_charge, em uma única transação SQLite:
   let redeemed = 0;
 
+  const expiresIn = daysFromNow(180);
+
   const insertStmt = db.prepare(`
     INSERT OR IGNORE INTO wallet_transaction (
       id,
@@ -46,8 +49,9 @@ export function redeemPreCharge(
       origin,
       cycle,
       cpf,
+      expires_in,
       created_at
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, datetime('now'))
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'))
   `);
 
   const updateStmt = db.prepare(
@@ -66,6 +70,7 @@ export function redeemPreCharge(
         preCharge.origin,
         preCharge.cycle,
         cpf,
+        expiresIn,
       );
 
       // b. UPDATE pre_charge SET status='REDEEMED'

@@ -24,7 +24,7 @@ export class SqliteWalletWriter implements WalletWriter {
           row.origin,
           row.cycle,
           row.cpf,
-          row.expiresIn ?? null,
+          row.expiresIn,
         );
       }
     });

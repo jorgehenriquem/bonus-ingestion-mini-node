@@ -42,8 +42,9 @@ export async function ingestBonusFile(
     expiredRate = 0,
   } = opts;
 
-  // Data de vencimento já expirada: 200 dias atrás (> 181 dias exigidos pelo motor de expiração)
-  const expiredAt = new Date(Date.now() - 200 * 24 * 60 * 60 * 1000).toISOString();
+  const defaultExpiresIn = daysFromNow(180);
+  // Já vencido: 200 dias atrás (> 181 dias exigidos pelo motor de expiração)
+  const alreadyExpiredAt = daysFromNow(-200);
 
   const fileKey = path.basename(filePath);
   const lookup = new SqliteCustomerLookup(db);
@@ -98,7 +99,7 @@ export async function ingestBonusFile(
           cycle: record.cycle,
           origin: record.origin,
           cpf: record.cpf,
-          expiresIn: isExpired ? expiredAt : null,
+          expiresIn: isExpired ? alreadyExpiredAt : defaultExpiresIn,
         });
       } else {
         preChargeRows.push({
@@ -190,6 +191,10 @@ export async function ingestBonusFile(
 
 export function buildFileKey(filePath: string): string {
   return path.basename(filePath);
+}
+
+export function daysFromNow(days: number): string {
+  return new Date(Date.now() + days * 24 * 60 * 60 * 1000).toISOString();
 }
 
 // Mascara CPF para uso em mensagens de erro (re-exporta para conveniência)

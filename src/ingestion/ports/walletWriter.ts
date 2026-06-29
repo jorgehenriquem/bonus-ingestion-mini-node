@@ -5,7 +5,7 @@ export interface WalletWriterRow {
   cycle: string;
   origin: string;
   cpf: string;
-  expiresIn?: string | null; // ISO datetime; null = sem vencimento
+  expiresIn: string; // ISO datetime — obrigatório; padrão: now + 180 dias
 }
 
 export interface PreChargeRow {

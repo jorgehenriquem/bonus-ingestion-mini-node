@@ -53,6 +53,7 @@ describe('SqliteWalletWriter', () => {
           cycle: '2026-06',
           origin: 'vivo',
           cpf: '12345678901',
+          expiresIn: new Date(Date.now() + 180 * 86400000).toISOString(),
         },
         {
           id: randomUUID(),
@@ -61,6 +62,7 @@ describe('SqliteWalletWriter', () => {
           cycle: '2026-06',
           origin: 'vivo',
           cpf: '11111111111',
+          expiresIn: new Date(Date.now() + 180 * 86400000).toISOString(),
         },
       ];
 
@@ -108,6 +110,7 @@ describe('SqliteWalletWriter', () => {
           cycle: '2026-06',
           origin: 'vivo',
           cpf: '12345678901',
+          expiresIn: new Date(Date.now() + 180 * 86400000).toISOString(),
         },
       ];
 
