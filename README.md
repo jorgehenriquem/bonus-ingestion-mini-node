@@ -1,6 +1,6 @@
 # Bonus Ingestion Engine — mini (Node/TypeScript)
 
-Motor de ingestão de bônus em escala reduzida, recriando o fluxo da integração **Vivo / CRMBonus**: consumir um CSV gigante de clientes aptos, creditar quem tem cadastro e guardar como pré-recarga quem ainda não tem.
+Motor de ingestão de bônus em escala reduzida, criando o fluxo de integração: consumir um CSV gigante de clientes aptos, creditar quem tem cadastro e guardar como pré-recarga quem ainda não tem.
 
 Companheiro do [`expiration-engine-mini-node`](https://github.com/jorgehenriquem/expiration-engine-mini-node). Mesmo banco SQLite, mesma tabela `wallet_transaction` — os créditos criados aqui são exatamente os que o motor de expiração processa depois.
 
