@@ -49,27 +49,42 @@ npx tsx tools/genCsv.ts --rows 1000000 --hit-rate 0.7 --output data/sample.csv
 npx tsx src/ingestion/infra/cli.ts ingest data/sample.csv
 npx tsx src/ingestion/infra/cli.ts ingest data/sample.csv --no-resume
 npx tsx src/ingestion/infra/cli.ts ingest data/sample.csv --batch-size 1000
+npx tsx src/ingestion/infra/cli.ts ingest data/sample.csv --expired-rate 0.3
 ```
+
+| Flag | Default | Descrição |
+|------|---------|-----------|
+| `--no-resume` | — | Ignora checkpoint e processa do zero |
+| `--batch-size N` | 500 | Linhas por lote |
+| `--expired-rate R` | 0 | Fração de RECHARGEs criados já vencidos (útil para testar o motor de expiração) |
+
+Todo RECHARGE nasce com `expires_in = now + 180 dias`. Com `--expired-rate`, essa fração recebe `expires_in = now - 200 dias` (já expirado para o motor de expiração atuar).
 
 Saída ao final:
 
 ```
 [ingest] RELATÓRIO FINAL:
-  Lidas:       1.000.000
-  Creditadas:    700.000
-  Pré-recarga:   300.000
-  Rejeitadas:          0
-  Duração:         8.4s
-  Throughput:  118.000 r/s
+  Lidas:          100.000
+  Creditadas:      70.000
+  └ já vencidas:  21.000
+  Pré-recarga:     30.000
+  Rejeitadas:           0
+  Duração:           8.4s
+  Throughput:   118.000 r/s
 ```
 
-### 3. Onboarding — converter pré-recarga em crédito
+### 3. Onboarding — registrar cliente e converter pré-recarga
 
 ```bash
+# Registra o cliente e converte automaticamente as pré-recargas pendentes
+npx tsx src/ingestion/infra/cli.ts register <cpf>
+npx tsx src/ingestion/infra/cli.ts register <cpf> --phone 11999990000 --wallet-id wallet-xyz
+
+# Ou só converter (se o customer já existe)
 npx tsx src/ingestion/infra/cli.ts redeem <cpf>
 ```
 
-Simula o cliente que não tinha cadastro se registrando: os créditos pendentes (`PRE_RESERVED`) caem automaticamente na carteira como `RECHARGE`.
+O `register` cria o `customer` no banco e em seguida converte todos os `pre_charge PENDING` daquele CPF em `RECHARGE` com `expires_in = now + 180 dias` — tudo em uma única transação.
 
 ### 4. Testes
 
@@ -92,7 +107,7 @@ npx tsx src/ingestion/infra/cli.ts ingest data/sample.csv
 npx tsx src/ingestion/infra/cli.ts ingest data/sample.csv
 
 # Onboarding: cliente sem cadastro se registra e recebe o bônus retroativo
-npx tsx src/ingestion/infra/cli.ts redeem 00000035000
+npx tsx src/ingestion/infra/cli.ts register 00000035000
 ```
 
 Para resetar o banco: `del data\ingestion.db` (Windows) ou `rm data/ingestion.db` (Unix).
@@ -121,7 +136,7 @@ src/ingestion/
     sqliteWalletWriter.ts
     sqliteCheckpoint.ts
     fileRejectSink.ts   JSONL com CPF mascarado
-    cli.ts              CLI: ingest / redeem
+    cli.ts              CLI: ingest / register / redeem
 tools/
   genCsv.ts             gerador de CSV de volume
 test/
@@ -139,6 +154,8 @@ test/
 | PK determinística `origin:cycle:cpf` | Idempotência limpa — reprocessar não duplica mesmo sem checkpoint |
 | Checkpoint salvo **na mesma transação** do bulk write | Elimina a janela de crash entre write e save do checkpoint |
 | Aborta após 3 erros consecutivos | Lotes bons anteriores preservados; falha isolada não derruba tudo |
+| `expires_in` obrigatório, padrão now + 180 dias | Todo crédito nasce com vencimento definido para o motor de expiração |
+| `--expired-rate` cria créditos com `expires_in` no passado | Gera terreno para o motor de expiração sem precisar esperar 180 dias |
 
 ### Schema SQLite
 
