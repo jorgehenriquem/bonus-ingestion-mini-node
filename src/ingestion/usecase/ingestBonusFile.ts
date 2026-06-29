@@ -121,7 +121,7 @@ export async function ingestBonusFile(
     })();
 
     credited += rechargeRows.length;
-    expired += rechargeRows.filter((r) => r.expiresIn != null).length;
+    expired += rechargeRows.filter((r) => new Date(r.expiresIn) < new Date()).length;
     preCharged += preChargeRows.length;
 
     logTick++;
