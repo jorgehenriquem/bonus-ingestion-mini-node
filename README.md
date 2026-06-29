@@ -160,7 +160,7 @@ test/
 ### Schema SQLite
 
 ```sql
-wallet_transaction  -- créditos (RECHARGE); UNIQUE(origin, cycle, cpf)
+wallet_transaction  -- créditos (RECHARGE); índice único parcial (origin, cycle, cpf) WHERE type='RECHARGE'
 customer            -- mock de cadastro: cpf → wallet_id
 pre_charge          -- pré-recargas pendentes; UNIQUE(origin, cycle, cpf)
 ingest_checkpoint   -- file_key → last_batch (resume)
