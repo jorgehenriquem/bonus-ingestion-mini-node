@@ -8,9 +8,9 @@ export class SqliteWalletWriter implements WalletWriter {
     if (rows.length === 0) return;
 
     const insert = this.db.prepare(`
-      INSERT OR IGNORE INTO wallet_transaction 
-        (id, wallet_id, type, amount, balance, origin, cycle, cpf, created_at)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, datetime('now'))
+      INSERT OR IGNORE INTO wallet_transaction
+        (id, wallet_id, type, amount, balance, origin, cycle, cpf, expires_in, created_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'))
     `);
 
     const transaction = this.db.transaction(() => {
@@ -24,6 +24,7 @@ export class SqliteWalletWriter implements WalletWriter {
           row.origin,
           row.cycle,
           row.cpf,
+          row.expiresIn ?? null,
         );
       }
     });

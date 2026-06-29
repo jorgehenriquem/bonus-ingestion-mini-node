@@ -16,11 +16,13 @@ export type IngestOptions = {
   resume?: boolean;
   rejectFilePath?: string;
   maxConsecutiveErrors?: number;
+  expiredRate?: number; // 0..1 — fração de RECHARGEs criados já vencidos (expires_in 200 dias atrás)
 };
 
 export type IngestReport = {
   read: number;
   credited: number;
+  expired: number; // subset de credited: criados já vencidos
   preCharged: number;
   rejected: number;
   durationMs: number;
@@ -37,7 +39,11 @@ export async function ingestBonusFile(
     resume = true,
     rejectFilePath = filePath + '.rejected.jsonl',
     maxConsecutiveErrors = 3,
+    expiredRate = 0,
   } = opts;
+
+  // Data de vencimento já expirada: 200 dias atrás (> 181 dias exigidos pelo motor de expiração)
+  const expiredAt = new Date(Date.now() - 200 * 24 * 60 * 60 * 1000).toISOString();
 
   const fileKey = path.basename(filePath);
   const lookup = new SqliteCustomerLookup(db);
@@ -49,6 +55,7 @@ export async function ingestBonusFile(
 
   let read = 0;
   let credited = 0;
+  let expired = 0;
   let preCharged = 0;
   let rejected = 0;
   let batchNo = 0;
@@ -82,6 +89,7 @@ export async function ingestBonusFile(
       const decision = decideCreditPolicy(record, walletId);
 
       if (decision.type === 'RECHARGE') {
+        const isExpired = expiredRate > 0 && Math.random() < expiredRate;
         rechargeRows.push({
           // PK determinística: elimina duplicação mesmo se checkpoint falhar antes de ser salvo
           id: `${record.origin}:${record.cycle}:${record.cpf}`,
@@ -90,6 +98,7 @@ export async function ingestBonusFile(
           cycle: record.cycle,
           origin: record.origin,
           cpf: record.cpf,
+          expiresIn: isExpired ? expiredAt : null,
         });
       } else {
         preChargeRows.push({
@@ -111,6 +120,7 @@ export async function ingestBonusFile(
     })();
 
     credited += rechargeRows.length;
+    expired += rechargeRows.filter((r) => r.expiresIn != null).length;
     preCharged += preChargeRows.length;
 
     logTick++;
@@ -172,7 +182,7 @@ export async function ingestBonusFile(
   const durationMs = Date.now() - startMs;
   const rowsPerSec = durationMs > 0 ? Math.round((read / durationMs) * 1000) : 0;
 
-  const report: IngestReport = { read, credited, preCharged, rejected, durationMs, rowsPerSec };
+  const report: IngestReport = { read, credited, expired, preCharged, rejected, durationMs, rowsPerSec };
   console.log('[ingest] concluído:', report);
 
   return report;
