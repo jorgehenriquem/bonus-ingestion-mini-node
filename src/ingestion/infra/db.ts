@@ -33,12 +33,14 @@ function migrate(db: Database.Database): void {
       cycle      TEXT NOT NULL,
       cpf        TEXT NOT NULL,
       expires_in TEXT,
-      created_at TEXT NOT NULL DEFAULT (datetime('now')),
-      UNIQUE(origin, cycle, cpf)
+      created_at TEXT NOT NULL DEFAULT (datetime('now'))
     );
 
     CREATE INDEX IF NOT EXISTS idx_wt_wallet ON wallet_transaction(wallet_id);
     CREATE INDEX IF NOT EXISTS idx_wt_type   ON wallet_transaction(type);
+    CREATE UNIQUE INDEX IF NOT EXISTS idx_wt_recharge_idempotency
+      ON wallet_transaction(origin, cycle, cpf)
+      WHERE type = 'RECHARGE';
 
     CREATE TABLE IF NOT EXISTS customer (
       cpf       TEXT PRIMARY KEY,
