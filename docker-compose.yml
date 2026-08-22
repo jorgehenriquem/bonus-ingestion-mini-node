@@ -1,0 +1,14 @@
+services:
+  bonus:
+    build: .
+    image: bonus-ingestion:latest
+    container_name: bonus-ingestion
+    command: ["up"]
+    volumes:
+      - bonus-data:/app/data
+    environment:
+      DB_PATH: /app/data/ingestion.db
+
+volumes:
+  bonus-data:
+    name: bonus-data

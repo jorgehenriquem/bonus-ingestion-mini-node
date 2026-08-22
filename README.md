@@ -28,6 +28,76 @@ O banco SQLite é criado automaticamente em `data/ingestion.db` na primeira exec
 
 ---
 
+## Docker
+
+Roda em qualquer máquina com Docker, sem instalar Node nem toolchain de compilação.
+
+```bash
+docker build -t bonus-ingestion .
+```
+
+O container usa um **volume nomeado** (`bonus-data`) para o banco e os CSVs — não um bind mount
+do host. Isso mantém o SQLite num filesystem Linux nativo, onde o travamento de arquivo que o WAL
+depende se comporta corretamente.
+
+```bash
+# Gera o CSV de volume
+docker run --rm -v bonus-data:/app/data bonus-ingestion gencsv --rows 200000 --hit-rate 0.7
+
+# Ingere com teto rígido de memória
+docker run --rm -v bonus-data:/app/data --memory=256m --cpus=1 \
+  bonus-ingestion ingest data/sample.csv
+
+# Onboarding
+docker run --rm -v bonus-data:/app/data bonus-ingestion register 00000199999
+
+# Suíte de testes dentro do container
+docker run --rm bonus-ingestion test
+
+# Sem argumento: lista os comandos disponíveis
+docker run --rm bonus-ingestion
+```
+
+### Container em modo interativo
+
+```bash
+docker compose up -d
+docker exec bonus-ingestion entrypoint ingest data/sample.csv
+docker exec -it bonus-ingestion entrypoint shell
+```
+
+### O `--memory=256m` é o ponto
+
+O teto é imposto pelo kernel: se o pipeline não fosse streaming de verdade, o container levaria
+OOM kill. Processar um arquivo de gigabytes dentro de 256 MB é a demonstração de que a memória
+não acompanha o tamanho da entrada.
+
+```
+[ingest] RELATÓRIO FINAL:
+  Lidas:          200.000
+  Creditadas:     140.000
+  Pré-recarga:     60.000
+  Rejeitadas:           0
+  Duração:            3.8s
+  Throughput:    53.173 r/s
+```
+
+Rodar o mesmo comando de novo devolve `Creditadas: 0` — o checkpoint retomou e a idempotência
+segurou. Para recomeçar do zero: `docker volume rm bonus-data`.
+
+### Decisões do Dockerfile
+
+| Decisão | Motivo |
+|---------|--------|
+| `node:24-bookworm-slim`, não Alpine | A musl libc do Alpine força recompilar o `better-sqlite3` em vez de usar o prebuilt |
+| Multi-stage | `python3`/`make`/`g++` são necessários no `npm ci` e lixo no runtime |
+| `NODE_ENV` não é `production` no estágio de deps | `tsx` é devDependency e é o runtime do projeto (os imports usam extensão `.ts`) |
+| Entrypoint com subcomandos | `docker run ... ingest` em vez de repetir o caminho do arquivo TS |
+| `node_modules/.bin/tsx` em vez de `npx` | Sem overhead de resolução e sem `npm notice` sujando o stdout |
+| `package-lock.json` versionado | `npm ci` — build reproduzível — não funciona sem o lockfile no repositório |
+
+---
+
 ## Uso
 
 ### 1. Gerar CSV de volume
