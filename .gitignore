@@ -7,4 +7,3 @@ data/*.csv
 data/*.jsonl
 *.rejected.jsonl
 test-reject-sink.jsonl
-package-lock.json
