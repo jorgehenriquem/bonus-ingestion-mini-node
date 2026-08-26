@@ -5,6 +5,12 @@ import { SqliteCustomerLookup } from '../infra/sqliteCustomerLookup.ts';
 import { SqliteWalletWriter } from '../infra/sqliteWalletWriter.ts';
 import { SqliteCheckpoint } from '../infra/sqliteCheckpoint.ts';
 import { FileRejectSink } from '../infra/fileRejectSink.ts';
+import { log } from '../infra/logger.ts';
+import {
+  daysFromNow,
+  DEFAULT_EXPIRY_DAYS,
+  ALREADY_EXPIRED_DAYS,
+} from '../domain/expiry.ts';
 import { parseBonusRow, maskCpf } from '../domain/bonusRecord.ts';
 import { decideCreditPolicy } from '../domain/creditPolicy.ts';
 import type { BonusRecord } from '../domain/bonusRecord.ts';
@@ -17,6 +23,19 @@ export type IngestOptions = {
   rejectFilePath?: string;
   maxConsecutiveErrors?: number;
   expiredRate?: number; // 0..1 — fração de RECHARGEs criados já vencidos (expires_in 200 dias atrás)
+  onProgress?: (snapshot: IngestProgress) => void;
+  shouldCancel?: () => boolean;
+};
+
+export type IngestProgress = {
+  batchNo: number;
+  read: number;
+  credited: number;
+  expired: number;
+  preCharged: number;
+  rejected: number;
+  rowsPerSec: number;
+  rssMb: number;
 };
 
 export type IngestReport = {
@@ -27,6 +46,7 @@ export type IngestReport = {
   rejected: number;
   durationMs: number;
   rowsPerSec: number;
+  cancelled: boolean;
 };
 
 export async function ingestBonusFile(
@@ -40,11 +60,12 @@ export async function ingestBonusFile(
     rejectFilePath = filePath + '.rejected.jsonl',
     maxConsecutiveErrors = 3,
     expiredRate = 0,
+    onProgress,
+    shouldCancel,
   } = opts;
 
-  const defaultExpiresIn = daysFromNow(180);
-  // Já vencido: 200 dias atrás (> 181 dias exigidos pelo motor de expiração)
-  const alreadyExpiredAt = daysFromNow(-200);
+  const defaultExpiresIn = daysFromNow(DEFAULT_EXPIRY_DAYS);
+  const alreadyExpiredAt = daysFromNow(ALREADY_EXPIRED_DAYS);
 
   const fileKey = path.basename(filePath);
   const lookup = new SqliteCustomerLookup(db);
@@ -129,14 +150,22 @@ export async function ingestBonusFile(
       const elapsed = (performance.now() - startMs) / 1000;
       const rps = elapsed > 0 ? Math.round(read / elapsed) : 0;
       const rss = Math.round(process.memoryUsage().rss / 1024 / 1024);
-      console.log(
+      log(
         `[ingest] lote=${batchNo} lido=${read} creditado=${credited} pre=${preCharged} rej=${rejected} ${rps}r/s mem=${rss}MB`,
       );
+      onProgress?.({ batchNo, read, credited, expired, preCharged, rejected, rowsPerSec: rps, rssMb: rss });
     }
   };
 
+  let cancelled = false;
+
   try {
     for await (const row of csvRows(filePath)) {
+      if (batch.length === 0 && shouldCancel?.()) {
+        cancelled = true;
+        break;
+      }
+
       read++;
       const result = parseBonusRow(row);
 
@@ -155,7 +184,7 @@ export async function ingestBonusFile(
         } catch (err) {
           consecutiveErrors++;
           const msg = err instanceof Error ? err.message : String(err);
-          console.error(`[ingest] erro no lote ${batchNo + 1}: ${msg}`);
+          log(`[ingest] erro no lote ${batchNo + 1}: ${msg}`);
           if (consecutiveErrors >= maxConsecutiveErrors) {
             throw new Error(
               `Abortando: ${consecutiveErrors} erros consecutivos. Último: ${msg}`,
@@ -172,7 +201,7 @@ export async function ingestBonusFile(
         flushBatch();
       } catch (err) {
         const msg = err instanceof Error ? err.message : String(err);
-        console.error(`[ingest] erro no lote final: ${msg}`);
+        log(`[ingest] erro no lote final: ${msg}`);
         // lote final não aborta — só loga
       }
     }
@@ -183,8 +212,17 @@ export async function ingestBonusFile(
   const durationMs = performance.now() - startMs;
   const rowsPerSec = durationMs > 0 ? Math.round((read / durationMs) * 1000) : 0;
 
-  const report: IngestReport = { read, credited, expired, preCharged, rejected, durationMs, rowsPerSec };
-  console.log('[ingest] concluído:', report);
+  const report: IngestReport = {
+    read,
+    credited,
+    expired,
+    preCharged,
+    rejected,
+    durationMs,
+    rowsPerSec,
+    cancelled,
+  };
+  log(`[ingest] concluído: ${JSON.stringify(report)}`);
 
   return report;
 }
@@ -193,9 +231,7 @@ export function buildFileKey(filePath: string): string {
   return path.basename(filePath);
 }
 
-export function daysFromNow(days: number): string {
-  return new Date(Date.now() + days * 24 * 60 * 60 * 1000).toISOString();
-}
+export { daysFromNow };
 
 // Mascara CPF para uso em mensagens de erro (re-exporta para conveniência)
 export { maskCpf };
