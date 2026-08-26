@@ -1,6 +1,7 @@
 import { getDb, closeDb } from './db.ts';
 import { ingestBonusFile } from '../usecase/ingestBonusFile.ts';
 import { redeemPreCharge } from '../usecase/redeemPreCharge.ts';
+import { registerCustomer } from '../usecase/registerCustomer.ts';
 
 function printUsage() {
   console.log(`Uso:
@@ -88,18 +89,13 @@ async function handleIngest(filePath: string, opts: Record<string, string | numb
 async function handleRegister(cpf: string, opts: Record<string, string | number | boolean>) {
   const db = getDb();
   try {
-    const phone = (opts['phone'] as string) ?? null;
-    const walletId = (opts['wallet-id'] as string) ?? `wallet-${cpf}`;
+    const result = registerCustomer(db, {
+      cpf,
+      phone: (opts['phone'] as string) ?? null,
+      walletId: (opts['wallet-id'] as string) ?? null,
+    });
 
-    db.prepare(`
-      INSERT INTO customer (cpf, phone, wallet_id)
-      VALUES (?, ?, ?)
-      ON CONFLICT(cpf) DO UPDATE SET phone = excluded.phone, wallet_id = excluded.wallet_id
-    `).run(cpf, phone, walletId);
-
-    console.log(`[register] cliente cadastrado: cpf=${cpf} wallet=${walletId}`);
-
-    const result = redeemPreCharge(db, cpf);
+    console.log(`[register] cliente cadastrado: cpf=${cpf} wallet=${result.walletId}`);
 
     if (result.redeemed > 0) {
       console.log(`[register] ${result.redeemed} pré-recarga(s) convertida(s) em crédito`);
