@@ -20,6 +20,9 @@ bonus-ingestion — comandos disponíveis no container
   redeem <cpf>
         Converte pré-recargas pendentes em crédito
 
+  mcp
+        Inicia o servidor MCP em stdio (usado pelo Claude Cowork)
+
   test
         Roda a suíte Vitest dentro do container
 
@@ -44,6 +47,9 @@ case "$cmd" in
     ;;
   ingest|register|redeem)
     exec "$TSX" "$CLI" "$cmd" "$@"
+    ;;
+  mcp)
+    exec "$TSX" src/mcp/server.ts "$@"
     ;;
   test)
     exec npm test
