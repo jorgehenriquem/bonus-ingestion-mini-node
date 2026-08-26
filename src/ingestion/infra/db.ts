@@ -4,6 +4,7 @@ import { fileURLToPath } from 'node:url';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const DB_PATH = process.env['DB_PATH'] ?? path.resolve(__dirname, '../../../data/ingestion.db');
+const BUSY_TIMEOUT_MS = Number(process.env['DB_BUSY_TIMEOUT_MS'] ?? 5000);
 
 let _db: Database.Database | null = null;
 
@@ -12,6 +13,8 @@ export function getDb(): Database.Database {
   _db = new Database(DB_PATH);
   _db.pragma('journal_mode = WAL');
   _db.pragma('foreign_keys = ON');
+  // Reads from the MCP server overlap writes from the forked ingestion process.
+  _db.pragma(`busy_timeout = ${BUSY_TIMEOUT_MS}`);
   migrate(_db);
   return _db;
 }
