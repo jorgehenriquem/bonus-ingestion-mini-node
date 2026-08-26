@@ -10,13 +10,16 @@
     "test:watch": "vitest",
     "ingest": "tsx src/ingestion/infra/cli.ts ingest",
     "redeem": "tsx src/ingestion/infra/cli.ts redeem",
-    "gencsv": "tsx tools/genCsv.ts"
+    "gencsv": "tsx tools/genCsv.ts",
+    "mcp": "tsx src/mcp/server.ts"
   },
   "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.30.0",
     "better-sqlite3": "^12.11.1",
     "csv-parse": "^7.0.0",
     "fastify": "^5.9.0",
-    "p-limit": "^7.3.0"
+    "p-limit": "^7.3.0",
+    "zod": "^4.4.3"
   },
   "devDependencies": {
     "@types/better-sqlite3": "^7.6.13",
