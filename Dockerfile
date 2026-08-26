@@ -28,6 +28,7 @@ COPY docker-entrypoint.sh /usr/local/bin/entrypoint
 RUN sed -i 's/\r$//' /usr/local/bin/entrypoint && chmod +x /usr/local/bin/entrypoint
 
 ENV DB_PATH=/app/data/ingestion.db \
+    INGEST_ROOT=/app/data \
     NPM_CONFIG_UPDATE_NOTIFIER=false \
     NPM_CONFIG_FUND=false
 
